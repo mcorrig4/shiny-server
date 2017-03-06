@@ -94,7 +94,7 @@ ethnicity.df$percent <- 100*(ethnicity.df$black/ethnicity.df$total)
 # ----------------------------------
 eth.merged <- geo_join(tracts, ethnicity.df, "GEOID", "GEOID")
 # there are some tracts with no land that we should exclude
-eth.merged <- eth_merged[eth.merged$ALAND>0, ]
+eth.merged <- eth.merged[eth.merged$ALAND>0, ]
 
 # ----------------------
 # MAKE MAP USING LEAFLET
@@ -104,12 +104,12 @@ popup <- paste0("GEOID: ", eth.merged$GEOID, "<br>",
                 "Percent of Black Households: ", round(eth.merged$percent, 2))
 pal <- colorNumeric(
   palette = "YlGnBu",
-  domain = income_merged$percent
+  domain = eth.merged$percent
 )
 
 map3<-leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data = income_merged, 
+  addPolygons(data = eth.merged, 
               fillColor = ~pal(percent), 
               color = "#b2aeae", # you need to use hex colors
               fillOpacity = 0.7, 
@@ -117,7 +117,7 @@ map3<-leaflet() %>%
               smoothFactor = 0.2,
               popup = popup) %>%
   addLegend(pal = pal, 
-            values = income_merged$percent, 
+            values = eth.merged$percent, 
             position = "bottomright", 
             title = "Percent of Households<br>above $200k",
             labFormat = labelFormat(suffix = "%")) 
