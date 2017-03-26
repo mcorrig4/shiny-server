@@ -9,48 +9,39 @@ library(dplyr)
 source("helper.R")
 
 
+data.source <- "https://data.cityofchicago.org/api/views/ijzp-q8t2/rows.csv"
 
 
-
-
-pairs(Actual.Demand~Matched.DOW, d)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
   
   # ------------
+  # HEADER BAR
+  #-------------
+  
+  output$messageMenu <- renderMenu({
+    # Code to generate each of the messageItems here, in a list. This assumes
+    # that messageData is a data frame with two columns, 'from' and 'message'.
+    msgs <- apply(messageData, 1, function(row) {
+      messageItem(from = row[["from"]], message = row[["message"]])
+    })
+    
+    # This is equivalent to calling:
+    #   dropdownMenu(type="messages", msgs[[1]], msgs[[2]], ...)
+    dropdownMenu(
+      type = "messages",
+      badgeStatus = "warning", #makes the status indicator yellow
+      .list = msgs
+    )
+  })
+  
+  
+  # ------------
   # TAB 1
   #-------------
   
-  dd <- reactiveValues(Actual = d$Actual.Demand, Match = d$Matched.DOW)
-  observeEvent(input$daysOfWeek, {
-    print(input$daysOfWeek)
-    f <- d[d$Day.of.Week == input$daysOfWeek, ]#filter(d, Day.of.Week == input$daysOfWeek)
-    print(f)
-    dd$Actual <- f$Actual.Demand
-    dd$Match <- f$Matched.DOW
-    print(dd$Match)
-    
-  })
-  
-  
-  showLine <- reactiveValues(show = FALSE)
-  observeEvent(input$abButton1, {
-    showLine$show <- !showLine$show
-  })
-  
-  
-  output$summaryTxt <- renderText({
-    if (showLine$show) {
-      print(paste("R^2 = ", summary(lm(dd$Actual ~ dd$Match))$r.squared))
-    } else {
-      print("R^2 = ")
-    }
-  })
-  output$plot1 <- renderPlot({
-    plot(dd$Actual ~ dd$Match, col = "blue")
-    if (showLine$show) abline(lm(dd$Actual ~ dd$Match), col = "red")
-  })
+
   
   # ------------
   # TAB 2

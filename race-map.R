@@ -19,7 +19,7 @@ library(stringr) # to pad fips codes
 # ----------------------------------
 # Chicago is in Cook county Illinois
 # FIPS code information from http://www2.census.gov/geo/docs/reference/codes/files/st17_il_cou.txt
-blocks <- blocks(state = "IL", county = 031) # 031 is the FIPS code for cook county
+#blocks <- blocks(state = "IL", county = 031) # 031 is the FIPS code for cook county
 tracts <- tracts(state = "IL", county = 031)
 # this is > 340MB so be patient
 

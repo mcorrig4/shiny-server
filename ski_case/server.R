@@ -2,7 +2,7 @@
 #####  SERVER.R  ######
 #######################
 
-setwd("C:/Users/liamc/Google Drive/Ivey/BUSS - Business Statistics 9002b-2/shiny-server/ski_case")
+#setwd("C:/Users/liamc/Google Drive/Ivey/BUSS - Business Statistics 9002b-2/shiny-server/ski_case")
 
 library(shiny)
 library(dplyr)

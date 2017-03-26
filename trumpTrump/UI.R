@@ -9,7 +9,13 @@ library(shiny)
 # -------------------
 # HEADER
 # -------------------
-header <- dashboardHeader(title = "Ski School Forecasting")
+header <- dashboardHeader(
+  title = "Love Trumps Hate", 
+  
+  dropdownMenuOutput(
+    "messageMenu"
+  )
+)
 
 
 
@@ -81,4 +87,9 @@ dashboardPage(
   sidebar,
   body
 )
+
+
+
+
+
 

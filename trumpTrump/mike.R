@@ -13,7 +13,7 @@ setwd("C:/Users/liamc/Google Drive/Ivey/BUSS - Business Statistics 9002b-2/shiny
 
 # Load dataset
 #---------------------------------------
-df.crime <- read.csv("Crimes-2001-present.csv")
+df.crime <- read.csv("./data/crimes.csv")
 df.crime2 <- df.crime[1:1000,]
 
 switchvar <- function(typ="L") {
