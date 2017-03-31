@@ -1,4 +1,7 @@
 *.ini
 trumpTrump/data/crimes.csv
-*.log
+trumpTrump/data/rows.csv
 *.csv
+*.log
+*.log*
+*Copy
