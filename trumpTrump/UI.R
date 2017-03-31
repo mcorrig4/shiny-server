@@ -4,24 +4,22 @@
 
 library(shinydashboard)
 library(shiny)
+library(shinyjs)
 
 
-# -------------------
+
+#---------------------------------------
 # HEADER
-# -------------------
+#---------------------------------------
 header <- dashboardHeader(
-  title = "Love Trumps Hate", 
-  
-  dropdownMenuOutput(
-    "messageMenu"
-  )
+  title = "Love Trumps Hate"
 )
 
 
 
-# -------------------
+#---------------------------------------
 # SIDEBAR
-# -------------------
+#---------------------------------------
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("TAB ONE", tabName = "tab1", icon = icon("snowflake-o")),
@@ -33,45 +31,73 @@ sidebar <- dashboardSidebar(
 
 
 
-# -------------------
+#---------------------------------------
 # BODY
-# -------------------
+#---------------------------------------
 body <- dashboardBody(
-  tabItems(
-    # FIRST TAB
-    tabItem(tabName = "tab1",
-            fluidPage(
-              titlePanel("Matching Day of Week"),
-              h4("Check how accurate predicitons are when matching the same day of the week from the previous year")
-            ),
+  # -------------------
+  # LOADING SCREEN
+  # -------------------
+  useShinyjs(),
+  div(
+    id = "loading_page",
+    h1("Loading...")
+  ),
+  # -------------------
+  # MAIN CONTENT
+  # -------------------
+  hidden(
+    div(
+      id = "main_content",
+      
+      tabItems(
+        
+        # -------------------
+        # TAB ONE
+        # -------------------
+        tabItem(
+          tabName = "tab1",
+          fluidPage(
+            h1("Matching Day of Week"),
+            hr()
+          ),
+          fluidRow(
             hr(),
-            br(),
-            fluidRow(
-              plotOutput("plot1")
+            
+            box(
+              title = "Choose Timeframe",
+              # Copy the line below to make a select box 
+              selectInput("tab1_timeFrame", label = h3("Select box"), 
+                          choices = list("Year" = 1, "Month" = 2, "Day" = 3), 
+                          selected = 1)
             ),
-            fluidRow(
-              h4("Choose Days"),
-              checkboxGroupInput(
-                "daysOfWeek", 
-                label = NULL,#"Choose Days",
-                choices = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-                selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
-                inline =  TRUE
-              ),
-              box(
-                title = "Correlation",
-                actionButton("abButton1", label = "Add Line"),
-                h4(textOutput("summaryTxt"))
-              )
+            box(
+              title = "Choose Crime Type",
+              # Copy the line below to make a select box 
+              selectInput("tab1_crimeType", label = h3("Select box"), 
+                          choices = list("Assault" = 1, "Battery" = 2, "Both" = 3), 
+                          selected = 1)
             )
-    ),
-    #SECOND TAB
-    tabItem(
-      tabName = "tab2"
-    ),
-    #THIRD TAB
-    tabItem(
-      tabName = "tab3"
+          ),
+          fluidPage(
+            h1("Crime Graph"),
+            br(),
+            plotOutput("tab1_plot")
+          )
+        ),
+        # -------------------
+        # SECOND TAB
+        # -------------------
+        tabItem(
+          tabName = "tab2"
+        ),
+        # -------------------
+        # THIRD TAB
+        # -------------------
+        tabItem(
+          tabName = "tab3"
+        )
+      )
     )
   )
 )
@@ -79,9 +105,9 @@ body <- dashboardBody(
 
 
 
-# -------------------
+#---------------------------------------
 # THE APP
-# -------------------
+#---------------------------------------
 dashboardPage(
   header,
   sidebar,
