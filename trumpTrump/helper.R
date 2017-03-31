@@ -2,15 +2,12 @@
 #####  HELPER.R  ######
 #######################
 
-library(lubridate)
-library(dplyr)
-library(ggplot2)
 
-load_data <- function() {
-  Sys.sleep(2)
-  hide("loading_page")
-  show("main_content")
-}
+#--------------------
+# Faking lag helps break up to long loading time 
+# to give the user the illusion of progress
+#--------------------
+fakeLag <- function(lagTime = 3.0) {Sys.sleep(lagTime)}
 
 myStat <- function(data, loc, tim, typ) {
   # Inputs:

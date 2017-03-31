@@ -13,7 +13,7 @@ data.file <- "./data/rows.csv"
 
 
 shinyServer(function(input, output) {
-  data.set <- load_data(data.file)
+  crimes_tbl <- load_data(data.file, fake.connection = FALSE)
   
   # ------------
   # HEADER BAR
