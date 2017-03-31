@@ -35,7 +35,7 @@ df.raw$Hour <- hour(df.raw$Date)
 #	loc - a list containing 2 elements: vector(latitude/longitude) for bottom-left and top-right points
 #	tim - a list containing 2 elements: vector(start and end time), interval (Y, M)
 #	typ - a list containing 1 element:  vector(primary type)
-tim <- list(year=c(2003,2016), month=c(1,12))
+tim <- list(year=c(2001,2016), month=c(1,12))
 typ <- list(prm=c("HOMICIDE", "ASSAULT", "BATTERY"))
 loc <- list(bl=c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T)), 
 			tr=c(max(df.raw$Latitude, na.rm=T), max(df.raw$Longitude, na.rm=T)))
@@ -52,27 +52,24 @@ df.totals <- df %>%
 	summarise(Total=n())
 
 
-
 # DESCRIPTIVE STATISTICS
 # ===============================
 
 # 1. Mean and Standard Dev for Number of Incidents (Monthly)
 # -------------------------------
-days <- rep(c(31,28,31,30,31,30,31,31,30,31,30,31),14)
-days[26 + (4*12)*(0:2)] <- 29
-monthly_mean <- mean(df.totals$Total) 
-monthly_std <- sd(df.totals$Total)
+monthly_mean <- mean(df.totals$Total); monthly_mean 
+monthly_std <- sd(df.totals$Total); monthly_std
 
 # 2. Mean and Standard Dev for Number of Incidents (Annually)
 annual_total <- df.totals %>%
 	summarise(Total=sum(Total))
-annual_mean <- mean(annual_total$Total)
-annual_std <- sd(annual_total$Total)
+annual_mean <- mean(annual_total$Total); annual_mean
+annual_std <- sd(annual_total$Total); annual_std
 
 # 3. Mean Time of Day for the Occurence of Crime
 # -------------------------------
 hour_mean <- df %>%
-	summarise(mean_hour=mean(Hour))
+	summarise(mean_hour=mean(Hour), std_hour=sd(Hour)); hour_mean
 
 
 # DESCRIPTIVE GRAPHS
@@ -82,13 +79,14 @@ hour_mean <- df %>%
 # -------------------------------
 p <- plot_ly(alpha = 0.6) %>%
 	add_histogram(x = df$Hour)
-
+p
 
 # 2. Time Series Graph Displaying the Number of Incidents of Crime in Every Month
 # ------------------------------
 
 # Convert to Time Series
 # -------------------------------
+
 df.month <- as.data.frame(df.totals)
 ts.month <- df.month %>%
 	select(-Year, -Month) %>%
@@ -103,7 +101,6 @@ dygraph(ts.month, main = "Monthly Incidents of Crime in Chicago") %>%
 	dyRangeSelector()
 
 
-
 # INFERENTIAL STATISTICS - FORECASTING
 # ===============================
 # Decompose Time Series into Trend, Seasonal, and Random components
@@ -114,43 +111,35 @@ plot(ts.decomp)
 
 # Forecasting Method
 # ===============================
-model <- ets(ts.month, h=8)
+interval <- round(0.3*(12*(tim$year[2]-tim$year[1])+(tim$month[2]-tim$month[1])),0)
 
-hw <- HoltWinters(ldeaths)
-predicted <- predict(hw, n.ahead = 72, prediction.interval = TRUE)
+model <- ets(ts.month)
+f.pred <- forecast(model, h=interval)
 
-dygraph(predicted, main = "Predicted Lung Deaths (UK)") %>%
+ts.pred <- as.data.frame(f.pred) %>%
+	select(`Lo 95`, `Point Forecast`, `Hi 95`) %>%
+	ts(frequency=12, start=c(tim$year[2], tim$month[2]+1), end=c(tim$year[2]+floor(interval/12), tim$month[2]+interval%%12))
+
+combined <- cbind(ts.month,ts.pred)
+colnames(combined) <- c("Actual", "Low", "Point", "High")
+
+dygraph(combined, main = "Forecasting Incidents of Crime in Chicago") %>%
 	dyAxis("x", drawGrid = FALSE) %>%
-	dySeries(c("lwr", "fit", "upr"), label = "Deaths") %>%
-	dyOptions(colors = RColorBrewer::brewer.pal(3, "Set1"))
-
-dygraph(combined , main = "Forcested Crime Rate") %>%
-	dyAxis("x", drawGrid = FALSE) %>%
-	dySeries("actual", label = "Actual") %>%
-	dySeries(paste0("predicted.", c("lwr", "fit", "upr")), label = "Predicted") %>%
-	dyOptions(colors = RColorBrewer::brewer.pal(3, "Set1"))
+	dySeries("Actual", label = paste(typ$prm, sep="", collapse="+")) %>%
+	dySeries(c("Low", "Point", "High"), label = "Predicted") %>%
+	dyAxis("x", label = "Time Period", valueRange=c(tim$year[1], tim$year[2])) %>%
+	dyAxis("y", label = "Number of Incidents") %>%
+	dyHighlight(highlightSeriesOpts = list(strokeWidth = 1)) %>%
+	dyRangeSelector()
 
 
-
-
-# Using ets function
-# ----------------------
-?ets
-?forecast
-f.ets <- ets(ts.month)
-f.ets
-f <- forecast(model)
-plot(f)
-f.ets$residuals
-
+	
 # ACF
-# ------
-acf(f.ets$residuals, lag.max=20)
-Box.test(f.ets$residuals, lag=20, type="Ljung-Box")
+# ===============================
+Acf(model$residuals, lag.max=20)
+Box.test(model$residuals, lag=20, type="Ljung-Box")
 
-plot.ts(f.ets$residuals)
-plotForecastErrors(f.ets$residuals)
-
+plot.ts(model$residuals)
 
 plotForecastErrors <- function(forecasterrors)
 {
@@ -175,13 +164,4 @@ plotForecastErrors <- function(forecasterrors)
 	points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
 }
 
-
-# Adjust for Seasonal Component
-# -------------------------------
-ts.seasonal.adjust <- ts.month - ts.decomp$seasonal
-plot(ts.seasonal.adjust)
-
-# Simple Moving Average to reduce noise
-# -------------------------------
-ts.sma <- SMA(ts.month,n=5)
-plot(ts.smooth)
+plotForecastErrors(model$residuals)
