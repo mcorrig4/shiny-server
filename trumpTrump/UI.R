@@ -1,7 +1,6 @@
 ###################
 #####  UI.R  ######
 ###################
-
 library(shinydashboard)
 library(shinyjs)
 
@@ -27,11 +26,11 @@ sidebar <- dashboardSidebar(
   title = div(style = "display:block; background-color:#ffffff; text-align:center", tags$img(src='MSc-Logo.jpg',height='60',width='200')),
   sidebarMenu(
     menuItem("Intro", tabName = "tab1", icon = icon("play")),
-    menuItem("Descriptive Statistics", tabName = "tab2", icon = icon("sort-numeric-desc")),
-    menuItem("Inferential Statistics", tabName = "tab3", icon = icon("search-plus")),
-    menuItem("Forecasting", tabName = "tab4", icon = icon("arrows-alt")),
+    menuItem("Inputs", tabName = "tab2", icon = icon("sort-numeric-desc")),
+    menuItem("Descriptive Statistics", tabName = "tab3", icon = icon("search-plus")),
+    menuItem("Inferential Statistics", tabName = "tab4", icon = icon("wpexplorer")),
     menuItem("BONUS", tabName = "tab5", icon = icon("free-code-camp"))
-    )
+  )
 )
 
 
@@ -82,8 +81,8 @@ tab1 <- tabItem(
                    href = NULL, fill = FALSE),
            valueBox(value = "Chicago", subtitle = "Is it at risk?", icon = icon("search"), color = "aqua", width = 12,
                     href = NULL)
-          ),
-
+    ),
+    
     box(width = 7,
         status = "primary", id = "trump-quotes-container",
         div(id = "trump-quotes-container",
@@ -93,58 +92,184 @@ tab1 <- tabItem(
   )
 )
 
+
+
+
 # -------------------
-# SECOND TAB
+# SECOND TAB (INPUTS)
 # -------------------
 tab2 <- tabItem(
   tabName = "tab2",
   fluidPage(
-    h1("Heading Title"),
-    hr()
-  ),
-  fluidRow(
+    titlePanel("Inputs"),
     hr(),
-    box(
-      title = "Choose Timeframe",
-      # Copy the line below to make a select box 
-      selectInput("tab1_timeFrame", 
-                  label = h3("Select box"), 
-                  choices = list("Year" = 1, "Month" = 2, "Day" = 3), 
-                  selected = 1)
-    ),
-    box(
-      title = "Choose Crime Type",
-      # Copy the line below to make a select box 
-      selectInput("tab1_crimeType", 
-                  label = h3("Select box"), 
-                  choices = list("Assault" = 1, "Battery" = 2, "Both" = 3), 
-                  selected = 1)
+    column(12,
+           box(width = 12,
+               title = "Type of Crime",
+               status = "danger",
+               h5("Choose a types of crimes to investigate"),
+               div(class = "multicol",
+                   checkboxGroupInput("tab2_crimeTypes",
+                                      #label = h5("Choose a types of crimes to investigate"),
+                                      label = "",
+                                      selected = "HOMICIDE",
+                                      choices = c("ARSON","ASSAULT","BATTERY","BURGLARY","CONCEALED CARRY LICENSE VIOLATION","CRIM SEXUAL ASSAULT","CRIMINAL DAMAGE","CRIMINAL TRESPASS","DECEPTIVE PRACTICE","DOMESTIC VIOLENCE","GAMBLING","HOMICIDE","HUMAN TRAFFICKING","INTERFERENCE WITH PUBLIC OFFICER","INTIMIDATION","KIDNAPPING","LIQUOR LAW VIOLATION","MOTOR VEHICLE THEFT","NARCOTICS","NON - CRIMINAL","NON-CRIMINAL","NON-CRIMINAL (SUBJECT SPECIFIED)","OBSCENITY","OFFENSE INVOLVING CHILDREN","OTHER NARCOTIC VIOLATION","OTHER OFFENSE","PROSTITUTION","PUBLIC INDECENCY","PUBLIC PEACE VIOLATION","RITUALISM","ROBBERY","SEX OFFENSE","STALKING","THEFT","WEAPONS VIOLATION")
+                   )
+               )
+           ),
+           box(width = 12,
+               title = "Time Frame",
+               status = "danger",
+               dateRangeInput("tab2_datesRange", 
+                              label = h5("Choose range to investigate"),
+                              start = "2001/1/1",
+                              end = Sys.Date(),
+                              min = "2001/1/1",
+                              max = Sys.Date()
+               )
+           ),
+           box(width = 12,
+               title = "Location",
+               status = "danger",
+               leafletOutput("tab2_map")#, width = "100%", height = "400px")
+           )
     )
-  ),
-  fluidPage(
-    h1("Crime Graph"),
-    br(),
-    plotOutput("tab1_plot")
   )
 )
+
+
+
+
 
 # -------------------
 # THIRD TAB
 # -------------------
 tab3 <- tabItem(
-  tabName = "tab3"
+  tabName = "tab3",
+  titlePanel("Descriptive Statistics"),
+  hr(),
+  fluidRow(
+    box(width = 12,
+        title = "Selected Inputs",
+        status = "warning",
+        fluidRow(
+          valueBoxOutput("tab3_timeRange_start", width = 6),
+          valueBoxOutput("tab3_location_lat", width = 6)
+        ),
+        fluidRow(
+          valueBoxOutput("tab3_timeRange_end", width = 6),
+          valueBoxOutput("tab3_location_lng", width = 6)
+        ),
+        fluidRow(
+          valueBox(value = "Crime Types", subtitle = "Selected:", icon = icon("superpowers"), width = 5),
+          box(width = 7, htmlOutput("tab3_crimeTypes"), status = "warning")
+        )
+    )
+  ),
+  fluidRow(
+    box(width = 12,
+        title = "Crime Map",
+        status = "warning",
+        leafletOutput("tab3_map")
+    )
+  ),
+  fluidRow(
+    box(width = 8,
+        title = "Time of Day",
+        status = "warning",
+        plotlyOutput("tab3_timeOfDay_hist")
+        
+    ),
+    column(4,
+           wellPanel(
+             fluidRow(infoBoxOutput("tab3_timeOfDay_mean")),
+             br(),
+             fluidRow(infoBoxOutput("tab3_timeOfDay_stdev"))
+           )
+    )
+  ),
+  fluidRow(
+    box(width = 8,
+        title = "Time Series",
+        status = "warning",
+        dygraphOutput(
+          "tab3_timeSeries", 
+          width = "100%",
+          height = "400px"
+        )
+    ),
+    column(4,
+           wellPanel(
+             fluidRow(infoBoxOutput("tab3_timeSeries_mean")),
+             br(),
+             fluidRow(infoBoxOutput("tab3_timeSeries_stdev")),
+             br(),
+             fluidRow(infoBoxOutput("tab3_timeSeries_growthRate"))
+           )
+    )
+  )
 )
+
+
+
+
+
+
+
+
+
 # -------------------
 # FOURTH TAB
 # -------------------
 tab4 <- tabItem(
-  tabName = "tab4"
+  tabName = "tab4",
+  titlePanel("Forecasting"),
+  hr(),
+  fluidRow(
+    box(width = 12,
+        title = textOutput("tab4_forecast_title"),
+        status = "info",
+        dygraphOutput("tab4_forecast",        
+                      width = "100%",
+                      height = "400px")
+    )
+  ),
+  fluidRow(
+    box(width = 6,
+        title = "ACF",
+        status = "info",
+        plotOutput("tab4_plot_acf")
+    ),
+    box(width = 6,
+        title = "Residuals",
+        status = "info",
+        plotOutput("tab4_plot_res")
+    )
+  ),
+  fluidRow(
+    box(width = 6,
+        title = "Decomposistion",
+        status = "info",
+        plotOutput("tab4_plot_decomp")
+    )
+  )
+  
 )
+
+
+
+
+
+
+
+
 # -------------------
 # FITH TAB
 # -------------------
 tab5 <- tabItem(
-  tabName = "tab5"
+  tabName = "tab5",
+  titlePanel("Has anything changed?"),
+  box(width = 12, htmlOutput("tab5_text"))
 )
 
 
@@ -156,7 +281,7 @@ tab5 <- tabItem(
 # MAIN CONTENT
 #---------------------------------------
 mainScreen <- div(
-  div(id = "theme-selector-wrapper", shinythemes::themeSelector()),
+  #div(id = "theme-selector-wrapper", shinythemes::themeSelector()),
   id = "main_content",
   tabItems(
     tab1,
