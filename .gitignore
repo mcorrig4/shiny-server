@@ -5,3 +5,4 @@ trumpTrump/data/rows.csv
 *.log
 *.log*
 *Copy
+.Rhistory
