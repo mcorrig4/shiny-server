@@ -65,8 +65,17 @@ area_chicago <- (tp[1]-bl[1])*(tp[2]-bl[2]); area_chicago
 #	tim - a list containing 2 elements: vector(start and end time), interval (Y, M)
 #	typ - a list containing 1 element:  vector(primary type)
 tim <- list(year=c(2001,2017), month=c(1,2))
-typ <- list(prm=c("HOMICIDE"))
-loc <- list(bl=c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T)), 
+typ <- reactive({
+  ret <- list(prm = input$tab2_)
+})
+
+loc <- reactive({
+  bounds <- input$tab2_map_bounds
+  ret <- list(bl = c(bounds$south, bounds$west), tr = c(bounds$north, bounds$east))
+  return(ret)
+})
+
+  list(bl=c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T)), 
 			tr=c(max(df.raw$Latitude, na.rm=T), max(df.raw$Longitude, na.rm=T)))
 
 sel_area <- (loc$tr[1]-loc$bl[1])*(loc$tr[2]-loc$bl[2]); sel_area
