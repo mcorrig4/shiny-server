@@ -87,7 +87,7 @@ load_data <- function(data.source, fake.connection = FALSE) {
             incProgress(0.1, detail = "Spark options")
             options(rsparkling.sparklingwater.version = "2.0.3")
             incProgress(0.2, detail = "Initializing Spark connection")
-            sc <- spark_connect(master = "local", version = "2.1.0", hadoop_version="2.7")
+            sc <- spark_connect(master = "local", version = "2.0.0", hadoop_version="2.7")
             incProgress(0.65, detail = "Almost done")
             fakeLag(5.0)
             incProgress(0.05, detail = "Done")

@@ -200,11 +200,20 @@ tab3 <- tabItem(
     ),
     column(4,
            wellPanel(
-             fluidRow(infoBoxOutput("tab3_timeSeries_mean")),
-             br(),
-             fluidRow(infoBoxOutput("tab3_timeSeries_stdev")),
-             br(),
-             fluidRow(infoBoxOutput("tab3_timeSeries_growthRate"))
+             h5("Annual Mean"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_mean_y")),
+             h5("Annual Standard Deviation"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_stdev_y")),
+             h5("Annual Growth Rate"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_growthRate_y"))
+           ),
+           wellPanel(
+             h5("Monthly Mean"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_mean_m")),
+             h5("Monthly Standard Deviation"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_stdev_m")),
+             h5("Monthly Growth Rate"),
+             fluidRow(infoBoxOutput("tab3_timeSeries_growthRate_m"))
            )
     )
   )
