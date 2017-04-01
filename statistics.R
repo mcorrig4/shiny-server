@@ -1,4 +1,4 @@
-# Stats Project
+# Chicago Crime Analysis
 # ======================
 
 # Include Packages
@@ -26,9 +26,12 @@ df.raw$Month <- month(df.raw$Date)
 df.raw$Day <- day(df.raw$Date)
 df.raw$Hour <- hour(df.raw$Date)
 
+
+# SETUP
+#===========
 # POPULATION DENSITY CALCULATION
 # ===============================
-population_2000 <- 2893666
+population_2000 <- 2893666 #Values obtained from census data
 population_2010 <- 2695598
 
 # CAGR - Compound Annual Growth Rate of the Population
@@ -51,12 +54,12 @@ for (i in 1:(num_months-1)) {
 df.population <- data.frame(Year=year, Month=month, Population=pop/100000)
 
 
-
 # AREA OF CHICAGO
 # ===============================
 bl <- c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T))
 tp <- c(max(df.raw$Latitude, na.rm=T),max(df.raw$Longitude, na.rm=T))
 area_chicago <- (tp[1]-bl[1])*(tp[2]-bl[2]); area_chicago
+
 
 # DATA PREPARATION
 # ======================
@@ -78,18 +81,26 @@ loc <- reactive({
   list(bl=c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T)), 
 			tr=c(max(df.raw$Latitude, na.rm=T), max(df.raw$Longitude, na.rm=T)))
 
+# Determine the ratio of the area selected
+#-----------------------
 sel_area <- (loc$tr[1]-loc$bl[1])*(loc$tr[2]-loc$bl[2]); sel_area
 sel_ratio <- sel_area/area_chicago
 
+# Subset Data based on input parameters
+#-----------------------
 df <- df.raw %>%
 	filter(!is.na(Latitude), !is.na(Longitude), !is.na(Date), !is.na(`Primary Type`)) %>%
 	filter(`Primary Type` %in% typ$prm) %>%
 	filter(Latitude >= loc$bl[1], Latitude <= loc$tr[1], Longitude >= loc$bl[2], Longitude <= loc$tr[2]) %>%
 	filter(((Year>tim$year[1] & Year<tim$year[2]) | (Year==tim$year[1] & Month>=tim$month[1]) | (Year==tim$year[2] & Month<=tim$month[2])))
 
+# Join with calcualted population data
+# -----------------------
 df <- df %>%
 	inner_join(df.population, by = c("Year", "Month"))
 
+# Calculate the Crime Rate based on Area and Population Density 
+# -----------------------
 df.totals <- df %>%
 	group_by(Year, Month, Population) %>%
 	summarise(Total=n()) %>%
@@ -104,13 +115,13 @@ df.totals <- df %>%
 monthly_mean <- mean(df.totals$CrimeRate); monthly_mean 
 monthly_std <- sd(df.totals$CrimeRate); monthly_std
 
-# 2. Mean and Standard Dev for Crime Rate (Annually)
+#    Mean and Standard Dev for Crime Rate (Annually)
 annual_total <- df.totals %>%
 	summarise(Total=sum(CrimeRate))
 annual_mean <- mean(annual_total$Total); annual_mean
 annual_std <- sd(annual_total$Total); annual_std
 
-#3. Average Annual Growth Rate 
+#2. Average Annual Growth Rate 
 monthly_growthrate <- diff(df.totals$CrimeRate)/df.totals$CrimeRate[1:(length(df.totals$Total)-1)]
 avg_monthly_growthrate <- mean(monthly_growthrate); avg_monthly_growthrate
 
@@ -126,11 +137,11 @@ hour_stats <- df %>%
 
 # 1. Histogram Displaying Frequency of Crime based on Time of Day
 # -------------------------------
-p <- plot_ly(alpha = 0.6) %>%
+p1 <- plot_ly(alpha = 0.6) %>%
 	add_histogram(x = df$Hour) %>%
 	layout(xaxis = list(title="Time (Hours)"), yaxis= list(title="Frequency"))
 
-p
+p1
 # 2. Time Series Graph Displaying the Number of Incidents of Crime in Every Month
 # ------------------------------
 
@@ -192,40 +203,33 @@ dygraph(combined, main = "Forecasting Incidents of Crime in Chicago") %>%
 
 # ACF
 # ===============================
-
 acf(f.pred$residuals, lag.max=20)
 Box.test(f.pred$residuals, lag=20, type="Ljung-Box")
 
 plot.ts(f.pred$residuals)
 
-forecasterrors <- f.pred$residuals
+plotForecastErrors <- function(forecasterrors)
+{
 	# make a histogram of the forecast errors:
 	mybinsize <- IQR(forecasterrors)/4
 	mysd   <- sd(forecasterrors)
 	mymin  <- min(forecasterrors) - mysd*5
 	mymax  <- max(forecasterrors) + mysd*3
 	# generate normally distributed data with mean 0 and standard deviation mysd
-	mynorm <- rnorm(1000, mean=0, sd=mysd)
+	mynorm <- rnorm(10000, mean=0, sd=mysd)
 	mymin2 <- min(mynorm)
 	mymax2 <- max(mynorm)
 	if (mymin2 < mymin) { mymin <- mymin2 }
 	if (mymax2 > mymax) { mymax <- mymax2 }
-	# make a red histogram of the forecast errors, with the normally distributed data overlaid:
+	# histogram of the forecast errors, with the normally distributed data overlaid:
 	mybins <- seq(mymin, mymax, mybinsize)
-	
-	forecastdensity <- forecasterrors/length(forecasterrors)
-
-	myhist <- hist(mynorm, plot=TRUE, breaks=mybins)
-	points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
-	plot_ly(alpha = 0.6, color="red") %>%
-		add_histogram(x = forecasterrors, nbinsx=mybins) %>%
-		layout(xaxis = list(title="Error"), yaxis= list(title="Frequency")) %>%
-		add_lines(x = ~myhist, y = ~myhist$density, mode = "lines", line = list(color = "#5E88FC"))
-	
 	hist(forecasterrors, col="red", freq=FALSE, breaks=mybins)
 	# freq=FALSE ensures the area under the histogram = 1
 	# generate normally distributed data with mean 0 and standard deviation mysd
-	# myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+	myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
 	# plot the normal curve as a blue line on top of the histogram of forecast errors:
-	#points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+	points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+}
+
+plotForecastErrors(f.pred$residuals)
 
