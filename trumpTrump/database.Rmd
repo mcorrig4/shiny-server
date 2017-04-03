@@ -1,0 +1,243 @@
+---
+title: "Playing with Spark"
+output: html_notebook
+---
+
+```{r}
+###########################
+#####  DATABASE.Rmd  ######
+###########################
+```
+
+```{r include=FALSE, echo=FALSE}
+options(rsparkling.sparklingwater.version = "2.0.3")
+library(rsparkling)
+library(sparklyr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(reshape2)
+library(plotly)
+library(dygraphs)
+
+source("helper.R")
+```
+
+```{r}
+sc <- spark_connect(master = "local", version = "2.0.0", hadoop_version="2.7")
+crimes_tbl <- spark_read_csv(sc, "crimes", "./data/rows.csv")
+
+src_tbls(sc)
+dim(crimes_tbl)
+```
+Make spark table with only the columns we need
+```{r include = FALSE}
+crimes_tbl <- crimes_tbl %>%
+  mutate(Date2 = substr(Date, 1, 10), 
+         Month = as.integer(substr(Date, 1,2)), 
+         Day = as.integer(substr(Date, 4,2)), 
+         Year2 = as.integer(substr(Date, 7,4)), 
+         Time_of_Day = substr(Date, 12, 8), 
+         AM_PM = substr(Date, 21, 2)) %>%
+  mutate(Hour = #transform time_of_Day to be numeric hours.fractional_hours
+           as.numeric(substr(Time_of_Day, 1, 2)) + #hours
+           (as.numeric(substr(Time_of_Day, 4, 2)) / 60) + #minutes to fractionsl hours
+           (as.numeric(substr(Time_of_Day, 7, 2)) / 60 / 60) #seconds to fractional hours
+         ) %>% 
+  mutate(Time_of_Day = if_else((AM_PM == "PM" && floor(Time_of_Day) < 12) || 
+                                 (AM_PM == "AM" && floor(Time_of_Day) == 12), 
+                               (Time_of_Day + 12) %% 24.0, Time_of_Day)) %>%
+  select(Primary_Type, Latitude, Longitude, Date, Month, Day, Year, Year2, Time_of_Day, Hour) 
+
+crimes_tbl
+```
+# SETUP
+#===========
+# POPULATION DENSITY CALCULATION
+# ===============================
+```{r}
+# get min and max year 
+yearRange <- crimes_tbl %>% select(Year) %>% collapse() %>% summarise(min = min(Year), max = max(Year)) %>% select(min, max) %>% collect()
+
+population_2000 <- 2893666 #Values obtained from census data
+population_2010 <- 2695598
+
+# CAGR - Compound Annual Growth Rate of the Population
+cagr <- (population_2010/population_2000)^(1/(10*12)) - 1
+
+num_years <- yearRange$max - yearRange$min
+num_months <- num_years*12
+
+year <- rep(yearRange$min:yearRange$max, each=12)
+month <- rep(1:12, num_years)
+
+pop <- population_2000
+
+for (i in 1:(num_months-1)) {
+	pop[i+1] <- pop[i] * (1+cagr)	
+}	
+
+
+df.population <- sdf_copy_to(sc, x = data.frame(Year=year, Month=month, Population=pop/100000), name = "population", overwrite = TRUE)
+df.population
+```
+for compatibility between code
+```{r}
+df.raw <- crimes_tbl
+```
+# AREA OF CHICAGO
+# ===============================
+```{r}
+a <- crimes_tbl %>% summarise(minLat = min(Latitude), maxLat = max(Latitude), minLong = min(Longitude), maxLong = max(Longitude)) %>% collect()
+a
+area_chicago <- (a$maxLat - a$minLat) * (a$maxLong - a$minLong)
+```
+
+# DATA PREPARATION
+# ======================
+```{r}
+
+# Inputs:
+#	loc - a list containing 2 elements: vector(latitude/longitude) for bottom-left and top-right points
+#	tim - a list containing 2 elements: vector(start and end time), interval (Y, M)
+#	typ - a list containing 1 element:  vector(primary type)
+tim <- list(year=c(yearRange$min, yearRange$max), month=c(1,2))
+typ <- list(prm=c("HOMICIDE", "ASSAULT", "BATTERY", "NARCOTICS"))
+loc <- list(bl = c(a$minLat, a$minLong),
+            tr = c(a$maxLat, a$maxLong))
+
+# typ <- reactive({
+#   ret <- list(prm = input$tab2_)
+# })
+# loc <- reactive({
+#   bounds <- input$tab2_map_bounds
+#   if(is.null(bounds)) {
+#     ret <- list(bl = c(min(df.raw$Latitude, na.rm=T), min(df.raw$Longitude, na.rm=T)),
+#                 tr = c(max(df.raw$Latitude, na.rm=T), max(df.raw$Longitude, na.rm=T)))
+#   } else {
+#     ret <- list(bl = c(bounds$south, bounds$west), tr = c(bounds$north, bounds$east))
+#   }
+#   return(ret)
+# })
+```
+# Determine the ratio of the area selected
+#-----------------------
+```{r}
+sel_area <- (loc$tr[1]-loc$bl[1])*(loc$tr[2]-loc$bl[2]); sel_area
+sel_ratio <- sel_area/area_chicago
+```
+# Subset Data based on input parameters
+#-----------------------
+```{r}
+
+df <- df.raw %>%
+	filter(!is.na(Latitude), !is.na(Longitude), !is.na(Date), !is.na(`Primary_Type`)) %>%
+	filter(`Primary_Type` %in% typ$prm) %>%
+  filter(Latitude >= loc$bl[1], Latitude <= loc$tr[1], Longitude >= loc$bl[2], Longitude <= loc$tr[2]) %>%
+	filter(((Year>tim$year[1] & Year<tim$year[2]) | (Year==tim$year[1] & Month>=tim$month[1]) | (Year==tim$year[2] & Month<=tim$month[2]))) %>%
+# Join with calcualted population data
+# -----------------------
+	inner_join(df.population, by = c("Year", "Month"))
+df
+```
+# Calculate the Crime Rate based on Area and Population Density 
+# -----------------------
+```{r}
+
+df.totals <- dfr%>%
+	group_by(Year, Month, Population) %>%
+  summarise(Total = n()) %>%
+  collapse() %>%
+  mutate(CrimeRate = Total/(Population*sel_ratio)) %>% #rate / 100,000
+  compute()
+
+df.totals
+```
+# DESCRIPTIVE STATISTICS
+# ===============================
+```{r}
+# 1. Mean and Standard Dev for CrimeRate (Monthly)
+# -------------------------------
+a <- df.totals %>% select(CrimeRate) %>% collect()
+monthly_mean <- mean(a$CrimeRate); monthly_mean
+monthly_std <- sd(a$CrimeRate); monthly_std
+#    Mean and Standard Dev for Crime Rate (Annually)
+b <- df.totals %>%
+	group_by(Year, Population) %>%
+  summarise(Total = n()) %>%
+  mutate(CrimeRate = Total/(Population*sel_ratio)) %>% #rate / 100,000
+  select(CrimeRate) %>%
+  collect()
+
+annual_total <- b %>%	summarise(Total=sum(CrimeRate)); annual_total
+annual_mean <- mean(annual_total$Total); annual_mean
+annual_std <- sd(annual_total$Total); annual_std
+
+#2. Average Annual Growth Rate 
+monthly_growthrate <- diff(a$CrimeRate) / a$CrimeRate[1:(length(a$CrimeRate)-1)]; monthly_growthrate
+avg_monthly_growthrate <- mean(monthly_growthrate); avg_monthly_growthrate
+
+
+# 3. Mean Time of Day for the Occurence of Crime
+# -------------------------------
+hour_stats <- dfr %>%
+	summarise(mean_hour=mean(Hour), std_hour=sd(Hour)); hour_stats
+```
+
+# DESCRIPTIVE GRAPHS
+# ===============================
+
+# 1. Histogram Displaying Frequency of Crime based on Time of Day
+# -------------------------------
+```{r}
+ddd <- as.data.frame(dfr %>% summarise(Hour = floor(Hour)) %>% collect())$Hour; ddd
+p1 <- plot_ly(alpha = 0.6) %>% 
+  add_histogram(x = df$Hour) %>% 
+  layout(xaxis = list(title="Time (Hours)"), yaxis=list(title="Frequency")); p1
+```
+
+```{r}
+# 2. Time Series Graph Displaying the Number of Incidents of Crime in Every Month
+# ------------------------------
+
+# Convert to Time Series
+# -------------------------------
+
+df.month <- as.data.frame(df.totals); df.month
+ts.month <- df.month %>%
+	select(CrimeRate) %>%
+	ts( frequency=12, start=c(tim$year[1],tim$month[1]), end=c(tim$year[2],tim$month[2])); ts.month
+
+dygraph(ts.month, main = "Monthly Incidents of Crime in Chicago") %>%
+	dyOptions(fillGraph=TRUE, fillAlpha=0.2) %>%
+	dySeries(label=paste(typ$prm, sep="", collapse="+")) %>%
+	dyAxis("x", label = "Time (Months)", valueRange=c(tim$year[1], tim$year[2])) %>%
+	dyAxis("y", label = "Number of Incidents") %>%
+	dyHighlight(highlightSeriesOpts = list(strokeWidth = 1)) %>%
+	dyRangeSelector()
+
+
+# INFERENTIAL STATISTICS - FORECASTING
+# ===============================
+# Decompose Time Series into Trend, Seasonal, and Random components
+# -------------------------------
+ts.decomp <- decompose(ts.month)
+plot(ts.decomp)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
